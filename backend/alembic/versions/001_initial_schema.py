@@ -38,7 +38,7 @@ def upgrade() -> None:
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("filename", sa.Text, nullable=False),
         sa.Column("drive_file_id", sa.Text, unique=True, nullable=False),
-        sa.Column("duration_seconds", sa.Real),
+        sa.Column("duration_seconds", sa.REAL),
         sa.Column("notes", sa.Text),
         sa.Column("is_new", sa.Boolean, nullable=False, server_default=sa.text("true")),
         sa.Column("drive_url", sa.Text),
