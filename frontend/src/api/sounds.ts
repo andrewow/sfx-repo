@@ -47,6 +47,5 @@ export function updateSound(soundId: string, data: { notes?: string | null; is_n
 }
 
 export function getAudioUrl(soundId: string): string {
-  const apiUrl = import.meta.env.VITE_API_URL || "";
-  return `${apiUrl}/api/sounds/${soundId}/audio`;
+  return `/api/sounds/${soundId}/audio`;
 }

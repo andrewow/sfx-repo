@@ -5,8 +5,6 @@ from fastapi.responses import RedirectResponse
 from jose import jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.config import Config
-
 from app.auth.dependencies import get_current_user
 from app.auth.google_oauth import oauth
 from app.config import settings
@@ -62,14 +60,13 @@ async def callback(request: Request, db: AsyncSession = Depends(get_db)):
     token_data = {"user_id": str(user.id), "email": user.email}
     session_token = jwt.encode(token_data, settings.session_secret_key, algorithm="HS256")
 
-    response = RedirectResponse(url=settings.frontend_url, status_code=302)
+    response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(
         key="session",
         value=session_token,
         httponly=True,
         secure=True,
-        samesite="none",
-        domain=settings.cookie_domain or None,
+        samesite="lax",
         max_age=7 * 24 * 60 * 60,  # 7 days
     )
     return response
@@ -82,6 +79,6 @@ async def me(user: User = Depends(get_current_user)):
 
 @router.post("/logout")
 async def logout():
-    response = RedirectResponse(url=settings.frontend_url, status_code=302)
-    response.delete_cookie("session", domain=settings.cookie_domain or None)
+    response = RedirectResponse(url="/", status_code=302)
+    response.delete_cookie("session")
     return response

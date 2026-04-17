@@ -1,6 +1,4 @@
 export function LoginPage() {
-  const apiUrl = import.meta.env.VITE_API_URL || "";
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950">
       <div className="bg-gray-900 rounded-2xl p-10 shadow-2xl text-center max-w-sm w-full">
@@ -8,7 +6,7 @@ export function LoginPage() {
         <h1 className="text-2xl font-bold text-white mb-2">SFX Repository</h1>
         <p className="text-gray-400 mb-8 text-sm">Sign in with your Haiku Games account</p>
         <a
-          href={`${apiUrl}/auth/login`}
+          href="/auth/login"
           className="inline-flex items-center gap-3 bg-white text-gray-900 font-medium px-6 py-3 rounded-lg hover:bg-gray-100 transition-colors"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">

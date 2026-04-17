@@ -6,14 +6,13 @@ databases:
     region: oregon
 
 services:
-  # Backend (FastAPI)
   - type: web
-    name: sfx-api
+    name: sfx-repo
     runtime: python
     region: oregon
     plan: starter
     buildCommand: |
-      cd backend && pip install -r requirements.txt && PYTHONPATH=. alembic upgrade head
+      cd frontend && npm install --cache /tmp/npm-cache --legacy-peer-deps && npm run build && cp -r dist ../backend/static && cd ../backend && pip install -r requirements.txt && PYTHONPATH=. alembic upgrade head
     startCommand: |
       cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
@@ -31,25 +30,6 @@ services:
         generateValue: true
       - key: DRIVE_FOLDER_ID
         sync: false
-      - key: FRONTEND_URL
-        sync: false
       - key: PYTHON_VERSION
         value: "3.12"
     healthCheckPath: /health
-
-  # Frontend (React + Vite static site)
-  - type: static
-    name: sfx-app
-    buildCommand: cd frontend && npm install --cache /tmp/npm-cache --legacy-peer-deps && npm run build
-    staticPublishPath: frontend/dist
-    headers:
-      - path: /*
-        name: Cache-Control
-        value: public, max-age=0, must-revalidate
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_URL
-        sync: false

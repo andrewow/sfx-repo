@@ -3,7 +3,6 @@ import { useAuth } from "../context/AuthContext";
 
 export function Layout({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const apiUrl = import.meta.env.VITE_API_URL || "";
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -20,7 +19,7 @@ export function Layout({ children }: { children: ReactNode }) {
               )}
               <span className="text-sm text-gray-400">{user.display_name}</span>
               <a
-                href={`${apiUrl}/auth/logout`}
+                href="/auth/logout"
                 className="text-xs text-gray-500 hover:text-gray-300 ml-2"
               >
                 Sign out
