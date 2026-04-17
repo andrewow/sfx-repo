@@ -82,10 +82,10 @@ async def import_xlsx(xlsx_path: str):
             logger.warning(f"No Drive ID found for {filename}, skipping")
             continue
 
-        # Parse tags
+        # Parse tags (deduplicate)
         tag_list = []
         if tags_str:
-            tag_list = [t.strip().lower() for t in str(tags_str).split(",") if t.strip()]
+            tag_list = list(dict.fromkeys(t.strip().lower() for t in str(tags_str).split(",") if t.strip()))
 
         # Parse initials for favorites
         fav_initials = []
