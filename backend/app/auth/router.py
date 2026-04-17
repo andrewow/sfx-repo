@@ -62,7 +62,7 @@ async def callback(request: Request, db: AsyncSession = Depends(get_db)):
 
     response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(
-        key="session",
+        key="sfx_session",
         value=session_token,
         httponly=True,
         secure=True,
@@ -80,5 +80,5 @@ async def me(user: User = Depends(get_current_user)):
 @router.post("/logout")
 async def logout():
     response = RedirectResponse(url="/", status_code=302)
-    response.delete_cookie("session")
+    response.delete_cookie("sfx_session")
     return response
