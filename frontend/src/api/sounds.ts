@@ -5,6 +5,7 @@ export interface SoundQueryParams {
   q?: string;
   tags?: string;
   is_new?: boolean;
+  untagged?: boolean;
   favorites_only?: boolean;
   page?: number;
   per_page?: number;
@@ -17,6 +18,7 @@ export function fetchSounds(params: SoundQueryParams): Promise<PaginatedResponse
   if (params.q) searchParams.set("q", params.q);
   if (params.tags) searchParams.set("tags", params.tags);
   if (params.is_new !== undefined) searchParams.set("is_new", String(params.is_new));
+  if (params.untagged) searchParams.set("untagged", "true");
   if (params.favorites_only) searchParams.set("favorites_only", "true");
   if (params.page) searchParams.set("page", String(params.page));
   if (params.per_page) searchParams.set("per_page", String(params.per_page));
@@ -39,7 +41,7 @@ export function removeTag(soundId: string, tagName: string): Promise<Sound> {
   });
 }
 
-export function updateSound(soundId: string, data: { notes?: string | null; is_new?: boolean }): Promise<Sound> {
+export function updateSound(soundId: string, data: { notes?: string | null; is_new?: boolean; duration_seconds?: number }): Promise<Sound> {
   return apiFetch<Sound>(`/api/sounds/${soundId}`, {
     method: "PATCH",
     body: JSON.stringify(data),

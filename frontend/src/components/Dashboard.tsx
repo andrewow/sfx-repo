@@ -13,7 +13,7 @@ export function Dashboard() {
   const audio = useAudioPlayer();
 
   const [search, setSearch] = useState("");
-  const [showNew, setShowNew] = useState(false);
+  const [untagged, setUntagged] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sort, setSort] = useState("filename");
@@ -22,6 +22,7 @@ export function Dashboard() {
 
   const debouncedSearch = useDebounce(search, 300);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const updatedDurations = useRef(new Set<string>());
 
   // Popular tags (top 20 by usage count)
   const { data: popularTags } = useQuery({
@@ -38,10 +39,10 @@ export function Dashboard() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["sounds", { q: debouncedSearch || undefined, is_new: showNew || undefined, favorites_only: favoritesOnly || undefined, tags: selectedTags.join(",") || undefined, sort, order }],
+    queryKey: ["sounds", { q: debouncedSearch || undefined, untagged: untagged || undefined, favorites_only: favoritesOnly || undefined, tags: selectedTags.join(",") || undefined, sort, order }],
     queryFn: ({ pageParam }) => fetchSounds({
       q: debouncedSearch || undefined,
-      is_new: showNew ? true : undefined,
+      untagged: untagged || undefined,
       favorites_only: favoritesOnly || undefined,
       tags: selectedTags.join(",") || undefined,
       page: pageParam,
@@ -85,6 +86,22 @@ export function Dashboard() {
   const addFavMut = useMutation({ mutationFn: (soundId: string) => addFavorite(soundId), onSuccess: invalidate });
   const removeFavMut = useMutation({ mutationFn: (soundId: string) => removeFavorite(soundId), onSuccess: invalidate });
   const markSeenMut = useMutation({ mutationFn: (soundId: string) => updateSound(soundId, { is_new: false }), onSuccess: invalidate });
+  const updateNotesMut = useMutation({ mutationFn: ({ soundId, notes }: { soundId: string; notes: string | null }) => updateSound(soundId, { notes }), onSuccess: invalidate });
+  const updateDurationMut = useMutation({ mutationFn: ({ soundId, duration }: { soundId: string; duration: number }) => updateSound(soundId, { duration_seconds: duration }) });
+
+  // Auto-detect duration from audio playback
+  useEffect(() => {
+    if (audio.currentSoundId && audio.duration > 0 && !updatedDurations.current.has(audio.currentSoundId)) {
+      const sound = allSounds.find((s) => s.id === audio.currentSoundId);
+      if (sound && (sound.duration_seconds === null || Math.abs((sound.duration_seconds || 0) - audio.duration) > 0.5)) {
+        updatedDurations.current.add(audio.currentSoundId);
+        updateDurationMut.mutate(
+          { soundId: audio.currentSoundId, duration: Math.round(audio.duration * 10) / 10 },
+          { onSuccess: invalidate },
+        );
+      }
+    }
+  }, [audio.currentSoundId, audio.duration, allSounds]);
 
   const handleToggleFavorite = useCallback(
     (soundId: string, isFavorited: boolean) => {
@@ -119,8 +136,8 @@ export function Dashboard() {
       <FilterBar
         search={search}
         onSearchChange={setSearch}
-        showNew={showNew}
-        onShowNewChange={setShowNew}
+        untagged={untagged}
+        onUntaggedChange={setUntagged}
         favoritesOnly={favoritesOnly}
         onFavoritesOnlyChange={setFavoritesOnly}
       />
@@ -192,6 +209,7 @@ export function Dashboard() {
                     onAddTag={(soundId, tag) => addTagMut.mutate({ soundId, tag })}
                     onRemoveTag={(soundId, tag) => removeTagMut.mutate({ soundId, tag })}
                     onMarkSeen={(soundId) => markSeenMut.mutate(soundId)}
+                    onUpdateNotes={(soundId, notes) => updateNotesMut.mutate({ soundId, notes })}
                   />
                 ))
               )}

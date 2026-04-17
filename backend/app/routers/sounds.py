@@ -35,6 +35,7 @@ async def list_sounds(
     q: str | None = None,
     tags: str | None = None,
     is_new: bool | None = None,
+    untagged: bool = False,
     favorites_only: bool = False,
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
@@ -64,6 +65,11 @@ async def list_sounds(
     # Filter by is_new
     if is_new is not None:
         query = query.where(Sound.is_new == is_new)
+
+    # Filter by untagged (sounds with no tags)
+    if untagged:
+        tagged_ids = select(SoundTag.sound_id).distinct()
+        query = query.where(~Sound.id.in_(tagged_ids))
 
     # Filter by favorites
     if favorites_only:
@@ -156,6 +162,8 @@ async def update_sound(
         sound.notes = body.notes
     if body.is_new is not None:
         sound.is_new = body.is_new
+    if body.duration_seconds is not None:
+        sound.duration_seconds = body.duration_seconds
 
     await db.commit()
     await db.refresh(sound, ["tags", "favorites"])

@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import type { Sound } from "../types";
 import { AudioPlayer } from "./AudioPlayer";
 import { FavoriteButton } from "./FavoriteButton";
@@ -14,6 +15,7 @@ interface SoundRowProps {
   onAddTag: (soundId: string, tag: string) => void;
   onRemoveTag: (soundId: string, tag: string) => void;
   onMarkSeen: (soundId: string) => void;
+  onUpdateNotes: (soundId: string, notes: string | null) => void;
 }
 
 function formatDuration(seconds: number | null): string {
@@ -38,7 +40,32 @@ export function SoundRow({
   onAddTag,
   onRemoveTag,
   onMarkSeen,
+  onUpdateNotes,
 }: SoundRowProps) {
+  const [copied, setCopied] = useState(false);
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState(sound.notes || "");
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (editingNotes) notesRef.current?.focus();
+  }, [editingNotes]);
+
+  const handleCopyFilename = () => {
+    navigator.clipboard.writeText(sound.filename);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const handleNotesSubmit = () => {
+    const trimmed = notesValue.trim();
+    const newNotes = trimmed || null;
+    if (newNotes !== sound.notes) {
+      onUpdateNotes(sound.id, newNotes);
+    }
+    setEditingNotes(false);
+  };
+
   return (
     <tr className="border-b border-gray-800 hover:bg-gray-900/50 transition-colors">
       <td className="px-4 py-3">
@@ -50,8 +77,12 @@ export function SoundRow({
               title="Mark as seen"
             />
           )}
-          <span className="text-sm text-white font-medium truncate max-w-[250px]" title={sound.filename}>
-            {sound.filename}
+          <span
+            className={`text-sm font-medium truncate max-w-[250px] cursor-copy transition-colors ${copied ? "text-green-400" : "text-white hover:text-indigo-300"}`}
+            title="Click to copy filename"
+            onClick={handleCopyFilename}
+          >
+            {copied ? "Copied!" : sound.filename}
           </span>
         </div>
       </td>
@@ -80,9 +111,30 @@ export function SoundRow({
         />
       </td>
       <td className="px-4 py-3">
-        {sound.notes && (
-          <span className="text-xs text-gray-500 truncate max-w-[150px] block" title={sound.notes}>
-            {sound.notes}
+        {editingNotes ? (
+          <textarea
+            ref={notesRef}
+            value={notesValue}
+            onChange={(e) => setNotesValue(e.target.value)}
+            onBlur={handleNotesSubmit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleNotesSubmit(); }
+              if (e.key === "Escape") { setEditingNotes(false); setNotesValue(sound.notes || ""); }
+            }}
+            className="w-full bg-gray-800 text-xs text-gray-300 px-2 py-1 rounded border border-gray-600 focus:border-indigo-500 outline-none resize-none min-w-[150px]"
+            rows={2}
+          />
+        ) : (
+          <span
+            onClick={() => { setNotesValue(sound.notes || ""); setEditingNotes(true); }}
+            className="text-xs block cursor-text max-w-[200px]"
+            title={sound.notes || "Click to add notes"}
+          >
+            {sound.notes ? (
+              <span className="text-gray-500 truncate block">{sound.notes}</span>
+            ) : (
+              <span className="text-gray-700 italic">add notes...</span>
+            )}
           </span>
         )}
       </td>

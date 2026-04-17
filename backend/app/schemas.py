@@ -53,3 +53,4 @@ class AddTagRequest(BaseModel):
 class UpdateSoundRequest(BaseModel):
     notes: str | None = None
     is_new: bool | None = None
+    duration_seconds: float | None = None
