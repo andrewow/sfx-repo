@@ -24,13 +24,29 @@ export function TagEditor({ tags, onAdd, onRemove }: TagEditorProps) {
     if (isAdding) inputRef.current?.focus();
   }, [isAdding]);
 
-  const handleSubmit = (tagName: string) => {
+  const addTagByName = (tagName: string) => {
     const name = tagName.trim().toLowerCase();
     if (name && !tags.some((t) => t.name === name)) {
       onAdd(name);
     }
+  };
+
+  const handleSubmit = (tagName: string) => {
+    addTagByName(tagName);
     setInput("");
     setIsAdding(false);
+  };
+
+  const handleInputChange = (value: string) => {
+    if (value.includes(",")) {
+      const parts = value.split(",");
+      for (let i = 0; i < parts.length - 1; i++) {
+        addTagByName(parts[i]);
+      }
+      setInput(parts[parts.length - 1]);
+    } else {
+      setInput(value);
+    }
   };
 
   const existingTagNames = new Set(tags.map((t) => t.name));
@@ -51,12 +67,12 @@ export function TagEditor({ tags, onAdd, onRemove }: TagEditorProps) {
           <input
             ref={inputRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSubmit(input);
               if (e.key === "Escape") { setIsAdding(false); setInput(""); }
             }}
-            onBlur={() => { setTimeout(() => { setIsAdding(false); setInput(""); }, 150); }}
+            onBlur={() => { setTimeout(() => { if (input.trim()) addTagByName(input); setIsAdding(false); setInput(""); }, 150); }}
             className="bg-gray-800 text-white text-xs px-2 py-0.5 rounded-full outline-none border border-gray-600 focus:border-indigo-500 w-24"
             placeholder="add tag..."
           />
@@ -80,7 +96,7 @@ export function TagEditor({ tags, onAdd, onRemove }: TagEditorProps) {
           className="text-gray-600 hover:text-gray-400 text-xs px-1"
           title="Add tag"
         >
-          +
+          ADD+
         </button>
       )}
     </div>

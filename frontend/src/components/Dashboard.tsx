@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchSounds, addTag, removeTag, updateSound, type SoundQueryParams } from "../api/sounds";
+import { fetchTags } from "../api/tags";
 import { addFavorite, removeFavorite } from "../api/favorites";
 import { useDebounce } from "../hooks/useDebounce";
 import { useAudioPlayer } from "../hooks/useAudioPlayer";
@@ -14,30 +15,70 @@ export function Dashboard() {
   const [search, setSearch] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [page, setPage] = useState(1);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sort, setSort] = useState("filename");
   const [order, setOrder] = useState<"asc" | "desc">("asc");
   const perPage = 50;
 
   const debouncedSearch = useDebounce(search, 300);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  const params: SoundQueryParams = {
-    q: debouncedSearch || undefined,
-    is_new: showNew ? true : undefined,
-    favorites_only: favoritesOnly || undefined,
-    page,
-    per_page: perPage,
-    sort,
-    order,
-  };
+  // Popular tags (top 20 by usage count)
+  const { data: popularTags } = useQuery({
+    queryKey: ["tags", "popular"],
+    queryFn: () => fetchTags(),
+  });
+  const top20Tags = popularTags?.slice(0, 20) ?? [];
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["sounds", params],
-    queryFn: () => fetchSounds(params),
-    placeholderData: (prev) => prev,
+  // Sounds with infinite scroll
+  const {
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["sounds", { q: debouncedSearch || undefined, is_new: showNew || undefined, favorites_only: favoritesOnly || undefined, tags: selectedTags.join(",") || undefined, sort, order }],
+    queryFn: ({ pageParam }) => fetchSounds({
+      q: debouncedSearch || undefined,
+      is_new: showNew ? true : undefined,
+      favorites_only: favoritesOnly || undefined,
+      tags: selectedTags.join(",") || undefined,
+      page: pageParam,
+      per_page: perPage,
+      sort,
+      order,
+    }),
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.length * perPage;
+      return loaded < lastPage.total ? allPages.length + 1 : undefined;
+    },
+    initialPageParam: 1,
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["sounds"] });
+  // Infinite scroll observer
+  useEffect(() => {
+    const el = bottomRef.current;
+    if (!el || !hasNextPage) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const allSounds = data?.pages.flatMap((p) => p.items) ?? [];
+  const total = data?.pages[0]?.total ?? 0;
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["sounds"] });
+    queryClient.invalidateQueries({ queryKey: ["tags"] });
+  };
 
   const addTagMut = useMutation({ mutationFn: ({ soundId, tag }: { soundId: string; tag: string }) => addTag(soundId, tag), onSuccess: invalidate });
   const removeTagMut = useMutation({ mutationFn: ({ soundId, tag }: { soundId: string; tag: string }) => removeTag(soundId, tag), onSuccess: invalidate });
@@ -60,10 +101,13 @@ export function Dashboard() {
       setSort(col);
       setOrder("asc");
     }
-    setPage(1);
   };
 
-  const totalPages = data ? Math.ceil(data.total / perPage) : 0;
+  const toggleTag = (tagName: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tagName) ? prev.filter((t) => t !== tagName) : [...prev, tagName],
+    );
+  };
 
   const SortIcon = ({ col }: { col: string }) => {
     if (sort !== col) return null;
@@ -74,12 +118,39 @@ export function Dashboard() {
     <div className="space-y-4">
       <FilterBar
         search={search}
-        onSearchChange={(v) => { setSearch(v); setPage(1); }}
+        onSearchChange={setSearch}
         showNew={showNew}
-        onShowNewChange={(v) => { setShowNew(v); setPage(1); }}
+        onShowNewChange={setShowNew}
         favoritesOnly={favoritesOnly}
-        onFavoritesOnlyChange={(v) => { setFavoritesOnly(v); setPage(1); }}
+        onFavoritesOnlyChange={setFavoritesOnly}
       />
+
+      {top20Tags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider mr-1">Tags</span>
+          {top20Tags.map((tag) => (
+            <button
+              key={tag.name}
+              onClick={() => toggleTag(tag.name)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                selectedTags.includes(tag.name)
+                  ? "bg-indigo-600 border-indigo-500 text-white"
+                  : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-300"
+              }`}
+            >
+              {tag.name} ({tag.count})
+            </button>
+          ))}
+          {selectedTags.length > 0 && (
+            <button
+              onClick={() => setSelectedTags([])}
+              className="text-xs text-gray-500 hover:text-gray-300 ml-1"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
         <div className="overflow-x-auto">
@@ -99,16 +170,16 @@ export function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {isLoading && !data ? (
+              {isLoading && allSounds.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-gray-500">Loading sounds...</td>
                 </tr>
-              ) : data?.items.length === 0 ? (
+              ) : allSounds.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-gray-500">No sounds found</td>
                 </tr>
               ) : (
-                data?.items.map((sound) => (
+                allSounds.map((sound) => (
                   <SoundRow
                     key={sound.id}
                     sound={sound}
@@ -128,32 +199,11 @@ export function Dashboard() {
           </table>
         </div>
 
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800">
-            <span className="text-sm text-gray-500">
-              {data?.total} sounds total
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page <= 1}
-                className="px-3 py-1 text-sm text-gray-400 bg-gray-800 rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Prev
-              </button>
-              <span className="text-sm text-gray-400 px-3">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                onClick={() => setPage(Math.min(totalPages, page + 1))}
-                disabled={page >= totalPages}
-                className="px-3 py-1 text-sm text-gray-400 bg-gray-800 rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
+        <div className="px-4 py-3 border-t border-gray-800 text-sm text-gray-500">
+          {total > 0 && <span>{allSounds.length} of {total} sounds</span>}
+          {isFetchingNextPage && <span className="ml-2">Loading more...</span>}
+        </div>
+        <div ref={bottomRef} />
       </div>
     </div>
   );

@@ -46,12 +46,13 @@ async def list_sounds(
     # Base query
     query = select(Sound).options(selectinload(Sound.tags).selectinload(SoundTag.tag), selectinload(Sound.favorites))
 
-    # Search by filename or tags
+    # Search by filename or tags (each term must match via filename or tag)
     if q:
-        search_term = f"%{q.lower()}%"
-        # Match sounds where filename or any tag name matches
-        tag_sound_ids = select(SoundTag.sound_id).join(Tag).where(func.lower(Tag.name).like(search_term))
-        query = query.where((func.lower(Sound.filename).like(search_term)) | (Sound.id.in_(tag_sound_ids)))
+        terms = [t.strip().lower() for t in q.replace(",", " ").split() if t.strip()]
+        for term in terms:
+            search_term = f"%{term}%"
+            tag_sound_ids = select(SoundTag.sound_id).join(Tag).where(func.lower(Tag.name).like(search_term))
+            query = query.where((func.lower(Sound.filename).like(search_term)) | (Sound.id.in_(tag_sound_ids)))
 
     # Filter by specific tags (AND logic)
     if tags:
