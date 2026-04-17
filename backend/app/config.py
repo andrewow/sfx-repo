@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     drive_folder_id: str = ""
     frontend_url: str = "http://localhost:5173"
     allowed_domain: str = "haikugames.com"
+    cookie_domain: str = ""  # e.g. ".onrender.com" for cross-subdomain cookies
     ingestion_interval_seconds: int = 900  # 15 minutes
 
     model_config = {"env_file": ".env", "extra": "ignore"}

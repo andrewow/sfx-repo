@@ -68,7 +68,8 @@ async def callback(request: Request, db: AsyncSession = Depends(get_db)):
         value=session_token,
         httponly=True,
         secure=True,
-        samesite="lax",
+        samesite="none",
+        domain=settings.cookie_domain or None,
         max_age=7 * 24 * 60 * 60,  # 7 days
     )
     return response
@@ -82,5 +83,5 @@ async def me(user: User = Depends(get_current_user)):
 @router.post("/logout")
 async def logout():
     response = RedirectResponse(url=settings.frontend_url, status_code=302)
-    response.delete_cookie("session")
+    response.delete_cookie("session", domain=settings.cookie_domain or None)
     return response
