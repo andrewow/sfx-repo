@@ -11,7 +11,6 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
   });
 
   if (res.status === 401) {
-    window.location.href = `${API_URL}/auth/login`;
     throw new Error("Not authenticated");
   }
 
