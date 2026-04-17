@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="SFX Repository", lifespan=lifespan)
 
-app.add_middleware(SessionMiddleware, secret_key=settings.session_secret_key)
+app.add_middleware(SessionMiddleware, secret_key=settings.session_secret_key, https_only=True)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_url],
@@ -32,6 +32,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def force_https_scheme(request, call_next):
+    """Render terminates TLS at the proxy, so the app sees http://.
+    Fix the scheme so url_for() generates https:// URLs."""
+    if request.headers.get("x-forwarded-proto") == "https":
+        request.scope["scheme"] = "https"
+    return await call_next(request)
 
 # Register routers
 from app.auth.router import router as auth_router

@@ -20,6 +20,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.get("/login")
 async def login(request: Request):
     redirect_uri = str(request.url_for("auth_callback"))
+    # Force HTTPS for the callback URL on Render (behind reverse proxy)
+    redirect_uri = redirect_uri.replace("http://", "https://")
     return await oauth.google.authorize_redirect(request, redirect_uri, hd=settings.allowed_domain)
 
 
