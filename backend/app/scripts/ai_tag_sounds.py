@@ -13,7 +13,7 @@ import logging
 import sys
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
@@ -27,7 +27,13 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger("ai_tag_sounds")
 
 
-async def process_sound(session, sound: Sound, tag_map: dict[str, Tag], dry_run: bool) -> int:
+async def process_sound(
+    session,
+    sound: Sound,
+    tag_map: dict[str, Tag],
+    vocab: list[str],
+    dry_run: bool,
+) -> int:
     """Fetch audio, ask Gemini, persist tags. Returns number of tags applied."""
     logger.info(f"Processing: {sound.filename}")
     audio_stream = await asyncio.to_thread(stream_file, sound.drive_file_id)
@@ -36,8 +42,7 @@ async def process_sound(session, sound: Sound, tag_map: dict[str, Tag], dry_run:
         logger.warning(f"  empty audio stream for {sound.filename}; skipping")
         return 0
 
-    existing = list(tag_map.keys())
-    suggested = await suggest_tags(audio_bytes, sound.mime_type, existing)
+    suggested = await suggest_tags(audio_bytes, sound.mime_type, vocab)
     if not suggested:
         logger.warning(f"  no tags returned for {sound.filename}")
         return 0
@@ -65,11 +70,21 @@ async def process_sound(session, sound: Sound, tag_map: dict[str, Tag], dry_run:
     return len(suggested)
 
 
-async def run(limit: int | None, dry_run: bool) -> None:
+async def run(limit: int | None, vocab_size: int, dry_run: bool) -> None:
     async with async_session() as session:
         tag_rows = (await session.execute(select(Tag))).scalars().all()
         tag_map: dict[str, Tag] = {t.name: t for t in tag_rows}
         logger.info(f"Loaded {len(tag_map)} existing tags")
+
+        vocab_query = (
+            select(Tag.name)
+            .join(SoundTag, SoundTag.tag_id == Tag.id)
+            .group_by(Tag.name)
+            .order_by(func.count(SoundTag.sound_id).desc())
+            .limit(vocab_size)
+        )
+        vocab = (await session.execute(vocab_query)).scalars().all()
+        logger.info(f"Using top {len(vocab)} tags as vocabulary hint for Gemini")
 
         tagged_subq = select(SoundTag.sound_id).distinct()
         query = (
@@ -88,7 +103,7 @@ async def run(limit: int | None, dry_run: bool) -> None:
         failed = 0
         for sound in candidates:
             try:
-                applied = await process_sound(session, sound, tag_map, dry_run)
+                applied = await process_sound(session, sound, tag_map, list(vocab), dry_run)
                 if applied:
                     processed += 1
             except Exception as exc:
@@ -102,10 +117,11 @@ async def run(limit: int | None, dry_run: bool) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate AI tags for untagged sounds via Gemini.")
     parser.add_argument("--limit", type=int, default=None, help="Max number of sounds to process")
+    parser.add_argument("--vocab-size", type=int, default=300, help="Number of top-used tags to offer Gemini as the preferred vocabulary")
     parser.add_argument("--dry-run", action="store_true", help="Log suggestions without writing to DB")
     args = parser.parse_args()
 
-    asyncio.run(run(args.limit, args.dry_run))
+    asyncio.run(run(args.limit, args.vocab_size, args.dry_run))
 
 
 if __name__ == "__main__":
