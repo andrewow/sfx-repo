@@ -21,6 +21,7 @@ export interface Sound {
   duration_seconds: number | null;
   notes: string | null;
   is_new: boolean;
+  ai_tagged: boolean;
   mime_type: string;
   tags: Tag[];
   is_favorited: boolean;

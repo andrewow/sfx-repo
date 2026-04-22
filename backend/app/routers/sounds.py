@@ -23,6 +23,7 @@ def _sound_to_out(sound: Sound, user_id: UUID) -> SoundOut:
         duration_seconds=sound.duration_seconds,
         notes=sound.notes,
         is_new=sound.is_new,
+        ai_tagged=sound.ai_tagged,
         mime_type=sound.mime_type,
         tags=[TagOut(id=st.tag.id, name=st.tag.name) for st in sound.tags],
         is_favorited=user_id in fav_user_ids,
@@ -35,6 +36,7 @@ async def list_sounds(
     q: str | None = None,
     tags: str | None = None,
     is_new: bool | None = None,
+    ai_tagged: bool | None = None,
     untagged: bool = False,
     favorites_only: bool = False,
     page: int = Query(1, ge=1),
@@ -65,6 +67,10 @@ async def list_sounds(
     # Filter by is_new
     if is_new is not None:
         query = query.where(Sound.is_new == is_new)
+
+    # Filter by ai_tagged
+    if ai_tagged is not None:
+        query = query.where(Sound.ai_tagged == ai_tagged)
 
     # Filter by untagged (sounds with no tags)
     if untagged:
@@ -162,6 +168,8 @@ async def update_sound(
         sound.notes = body.notes
     if body.is_new is not None:
         sound.is_new = body.is_new
+    if body.ai_tagged is not None:
+        sound.ai_tagged = body.ai_tagged
     if body.duration_seconds is not None:
         sound.duration_seconds = body.duration_seconds
 

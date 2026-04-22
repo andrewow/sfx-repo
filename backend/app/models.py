@@ -32,6 +32,7 @@ class Sound(Base):
     duration_seconds: Mapped[float | None] = mapped_column(REAL)
     notes: Mapped[str | None] = mapped_column(Text)
     is_new: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    ai_tagged: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     drive_url: Mapped[str | None] = mapped_column(Text)
     mime_type: Mapped[str] = mapped_column(Text, default="audio/mpeg")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

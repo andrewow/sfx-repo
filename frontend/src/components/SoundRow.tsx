@@ -15,6 +15,7 @@ interface SoundRowProps {
   onAddTag: (soundId: string, tag: string) => void;
   onRemoveTag: (soundId: string, tag: string) => void;
   onMarkSeen: (soundId: string) => void;
+  onMarkReviewed: (soundId: string) => void;
   onUpdateNotes: (soundId: string, notes: string | null) => void;
 }
 
@@ -40,6 +41,7 @@ export function SoundRow({
   onAddTag,
   onRemoveTag,
   onMarkSeen,
+  onMarkReviewed,
   onUpdateNotes,
 }: SoundRowProps) {
   const [copied, setCopied] = useState(false);
@@ -76,6 +78,15 @@ export function SoundRow({
               className="w-2 h-2 rounded-full bg-green-500 shrink-0"
               title="Mark as seen"
             />
+          )}
+          {sound.ai_tagged && (
+            <button
+              onClick={() => onMarkReviewed(sound.id)}
+              className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-600/30 text-purple-300 border border-purple-500/50 hover:bg-purple-600/50 hover:text-white shrink-0 leading-none"
+              title="AI-tagged — click to mark reviewed"
+            >
+              AI
+            </button>
           )}
           <span
             className={`text-sm font-medium truncate max-w-[250px] cursor-copy transition-colors ${copied ? "text-green-400" : "text-white hover:text-indigo-300"}`}

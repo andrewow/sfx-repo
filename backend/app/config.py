@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     drive_folder_id: str = ""
     allowed_domain: str = "haikugames.com"
     ingestion_interval_seconds: int = 900  # 15 minutes
+    gemini_api_key: str = ""
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

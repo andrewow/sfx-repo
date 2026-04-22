@@ -31,6 +31,7 @@ class SoundOut(BaseModel):
     duration_seconds: float | None
     notes: str | None
     is_new: bool
+    ai_tagged: bool
     mime_type: str
     tags: list[TagOut]
     is_favorited: bool
@@ -53,4 +54,5 @@ class AddTagRequest(BaseModel):
 class UpdateSoundRequest(BaseModel):
     notes: str | None = None
     is_new: bool | None = None
+    ai_tagged: bool | None = None
     duration_seconds: float | None = None
