@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     ingestion_interval_seconds: int = 900  # 15 minutes
     gemini_api_key: str = ""
 
+    backup_drive_folder_id: str = ""
+    backup_dir: str = "/tmp/sfx_backups"
+    backup_log_path: str = "/tmp/sfx_backup.log"
+    backup_stale_days: int = 10
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 

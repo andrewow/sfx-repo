@@ -42,6 +42,7 @@ async def force_https_scheme(request, call_next):
 
 # Register routers
 from app.auth.router import router as auth_router
+from app.routers.admin import router as admin_router
 from app.routers.favorites import router as favorites_router
 from app.routers.sounds import router as sounds_router
 from app.routers.tags import router as tags_router
@@ -50,6 +51,7 @@ app.include_router(auth_router)
 app.include_router(sounds_router)
 app.include_router(tags_router)
 app.include_router(favorites_router)
+app.include_router(admin_router)
 
 
 @app.get("/health")
